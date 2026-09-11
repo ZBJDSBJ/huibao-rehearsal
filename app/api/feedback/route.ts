@@ -5,6 +5,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const transcript = String(body?.transcript || '');
+    const scenarioLabel = String(body?.scenarioLabel || '工作汇报');
     const frameworkName = String(body?.frameworkName || '');
     const frameworkSteps = Array.isArray(body?.frameworkSteps)
       ? body.frameworkSteps.map(String)
@@ -17,17 +18,14 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       return NextResponse.json({
-        note: '尚未配置 AI Key，本次仅返回本地启发式分析。若需 AI 深度点评，请在服务端 .env 设置 DEEPSEEK_API_KEY。',
+        note: '尚未配置 AI Key，本次仅返回本地分析。若需 AI 深度点评，请配置 DEEPSEEK_API_KEY。',
       });
     }
 
-    const prompt = buildFeedbackPrompt(transcript, frameworkName, frameworkSteps);
+    const prompt = buildFeedbackPrompt(transcript, scenarioLabel, frameworkName, frameworkSteps);
     const resp = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [{ role: 'user', content: prompt }],

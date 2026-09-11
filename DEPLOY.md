@@ -1,5 +1,15 @@
 # DEPLOY.md — 部署清单（汇报排练 · 表达训练）
 
+> ✅ **已上线**：https://huibao-rehearsal.vercel.app（生产，2025-09-11）
+> GitHub：https://github.com/ZBJDSBJ/huibao-rehearsal
+> 后续更新命令（本机已配置 Token，team 作用域需加 --scope）：
+> ```bash
+> cd app
+> git add -A && git commit -m "更新：xxx" && git push origin main
+> vercel deploy --prod --yes --scope zbjdsbjs-projects --token $VERCEL_TOKEN
+> ```
+> ⚠️ 大陆访问 *.vercel.app 可能慢/被墙，建议买域名绑 CDN（见第二阶段）。
+
 > 对应 SKILL.md 阶段二 · 步骤 9。本文件是"正式上线"的人工关卡清单。
 > 标 ⛔ 的步骤**必须由你亲自操作**（Pi 无法代劳：涉及你的账号、身份、付款或公开可见内容的最终点头）。
 

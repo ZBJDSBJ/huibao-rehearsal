@@ -30,7 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <nav className="nav">
               <Link href="/#features">功能</Link>
-              <Link href="/#how">怎么用</Link>
+              <Link href="/#frameworks">框架</Link>
+              <Link href="/#scenarios">场景</Link>
+              <Link href="/#faq">FAQ</Link>
               <Link href="/practice" className="nav-cta">开始练习</Link>
             </nav>
           </div>
