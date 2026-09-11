@@ -92,27 +92,41 @@ button { font-family: inherit; }
 .btn-lg { padding: 15px 34px; font-size: 17px; }
 .btn-sm { padding: 8px 16px; font-size: 14px; border-radius: 9px; }
 
-/* ============ Hero ============ */
-.hero { padding: 72px 0 48px; text-align: center; position: relative; overflow: hidden; }
-.hero::before {
-  content: ''; position: absolute; inset: 0; z-index: -1;
-  background:
-    radial-gradient(600px 300px at 20% 10%, rgba(79, 70, 229, 0.10), transparent 60%),
-    radial-gradient(600px 300px at 80% 0%, rgba(147, 51, 234, 0.10), transparent 60%);
+/* ============ Hero（暗色 aurora）============ */
+.hero {
+  position: relative;
+  padding: 84px 0 66px;
+  background: radial-gradient(1200px 620px at 50% -12%, #1e1b4b 0%, #0e1029 55%, #0b0c1f 100%);
+  color: #fff;
+  overflow: hidden;
 }
+.aurora { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.55; pointer-events: none; }
+.aurora-1 { width: 460px; height: 460px; background: #4f46e5; top: -140px; left: -100px; animation: float 9s ease-in-out infinite; }
+.aurora-2 { width: 380px; height: 380px; background: #a21caf; top: -80px; right: -80px; animation: float 11s ease-in-out infinite reverse; }
+.aurora-3 { width: 320px; height: 320px; background: #0ea5e9; bottom: -140px; left: 38%; animation: float 13s ease-in-out infinite; }
+@keyframes float { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(24px, -28px) scale(1.08); } }
+
 .hero-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--brand-soft); color: var(--brand);
-  font-size: 13px; font-weight: 700; padding: 6px 15px; border-radius: 999px; margin-bottom: 22px;
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.08); color: #c7d2fe;
+  border: 1px solid rgba(255,255,255,0.14);
+  font-size: 13px; font-weight: 600; padding: 6px 15px; border-radius: 999px; margin-bottom: 24px;
+  backdrop-filter: blur(6px);
 }
-.hero h1 { font-size: 46px; line-height: 1.18; margin: 0 0 18px; letter-spacing: -1px; font-weight: 800; }
-.hero h1 .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero p.sub { font-size: 18px; color: var(--muted); max-width: 620px; margin: 0 auto 30px; }
-.hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.hero-note { margin-top: 18px; font-size: 13px; color: var(--muted); opacity: 0.85; }
-.hero-meta { display: flex; gap: 26px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
-.hero-meta .m { display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--muted); }
-.hero-meta .m b { color: var(--ink); }
+.hero h1 { color: #fff; font-size: 48px; line-height: 1.15; margin: 0 0 20px; letter-spacing: -1.2px; font-weight: 800; }
+.hero h1 .grad {
+  background: linear-gradient(90deg, #a5b4fc, #f0abfc, #67e8f9, #a5b4fc);
+  background-size: 220% auto;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shine 5s linear infinite;
+}
+@keyframes shine { to { background-position: 220% center; } }
+.hero p.sub { color: rgba(255,255,255,0.72); font-size: 18px; max-width: 600px; margin: 0 0 30px; }
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+.hero-note { color: rgba(255,255,255,0.55); font-size: 13px; margin-top: 18px; }
+.hero-meta { display: flex; gap: 22px; margin-top: 26px; flex-wrap: wrap; }
+.hero-meta .m { display: flex; align-items: center; gap: 7px; font-size: 14px; color: rgba(255,255,255,0.65); }
+.hero-meta .m b { color: #fff; }
 
 /* ============ Sections ============ */
 .section { padding: 58px 0; }
@@ -293,13 +307,17 @@ button { font-family: inherit; }
 }
 
 /* ============ 两栏 Hero + 产品预览 ============ */
-.hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 44px; align-items: center; text-align: left; }
+.hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 44px; align-items: center; text-align: left; }
 .hero-actions { justify-content: flex-start; }
 .hero-meta { justify-content: flex-start; }
+.hero .btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); box-shadow: 0 10px 30px rgba(129,140,248,0.45); }
+.hero .btn-primary:hover:not(:disabled) { filter: brightness(1.08); background: linear-gradient(135deg, #6366f1, #a855f7); }
+.hero .btn-ghost { background: rgba(255,255,255,0.06); color: #fff; border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(6px); }
+.hero .btn-ghost:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.35); color: #fff; }
 
 .mockup {
-  background: #fff; border: 1px solid var(--line); border-radius: 18px;
-  box-shadow: var(--shadow-lg); overflow: hidden; transform: rotate(0deg);
+  background: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08); overflow: hidden;
 }
 .mockup-bar { display: flex; align-items: center; gap: 7px; padding: 11px 16px; background: #f4f5fb; border-bottom: 1px solid var(--line); }
 .mockup-dot { width: 11px; height: 11px; border-radius: 50%; }
@@ -376,3 +394,17 @@ button { font-family: inherit; }
 .results-top { display: flex; align-items: center; gap: 20px; }
 .results-side { display: flex; flex-direction: column; gap: 12px; flex: 1; }
 @media (max-width: 640px) { .results-top { flex-direction: column; align-items: flex-start; } }
+
+/* ============ 卡片悬浮 + 数据条 ============ */
+.grid-3 .card, .fw-card { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.grid-3 .card:hover, .fw-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: #d9ddff; }
+.grid-3 .card .emoji { background: linear-gradient(135deg, #eef0ff, #f5f3ff); }
+
+.statstrip { background: #fff; border-bottom: 1px solid var(--line); }
+.statstrip-inner { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 12px; padding: 24px 0; }
+.statstrip-inner > div { text-align: center; min-width: 110px; }
+.statstrip-inner b {
+  display: block; font-size: 30px; font-weight: 800; line-height: 1.1;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.statstrip-inner span { font-size: 13px; color: var(--muted); }

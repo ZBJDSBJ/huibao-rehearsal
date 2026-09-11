@@ -39,8 +39,11 @@ function HeroMockup() {
 export default function HomePage() {
   return (
     <main>
-      <section className="hero container">
-        <div className="hero-grid">
+      <section className="hero">
+        <div className="aurora aurora-1" />
+        <div className="aurora aurora-2" />
+        <div className="aurora aurora-3" />
+        <div className="container hero-grid">
           <div>
             <span className="hero-badge">✦ 网页版 · 无需下载 · 打开即用</span>
             <h1>
@@ -64,6 +67,15 @@ export default function HomePage() {
             </div>
           </div>
           <HeroMockup />
+        </div>
+      </section>
+
+      <section className="statstrip">
+        <div className="container statstrip-inner">
+          <div><b>5</b><span>大表达框架</span></div>
+          <div><b>6</b><span>大职场场景</span></div>
+          <div><b>4</b><span>维评分雷达</span></div>
+          <div><b>0</b><span>下载 / 注册</span></div>
         </div>
       </section>
 
