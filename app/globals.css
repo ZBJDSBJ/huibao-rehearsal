@@ -424,3 +424,45 @@ button { font-family: inherit; }
 .practice-hero .tab-btn { color: rgba(255,255,255,0.72); }
 .practice-hero .tab-btn:hover { color: #fff; }
 .practice-hero .tab-btn.on { background: #fff; color: var(--brand); }
+
+/* ============ 题目区 / 分步引导 / 即兴 ============ */
+.topic-box { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.topic-label { font-size: 13px; color: var(--muted); font-weight: 700; }
+.topic-text { font-size: 16px; font-weight: 600; color: var(--ink); margin: 6px 0 10px; }
+.topic-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.topic-input {
+  flex: 1; min-width: 200px; border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 12px; font-size: 14px; font-family: inherit;
+}
+.topic-input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+
+.guided-progress { margin-bottom: 16px; }
+.guided-progress > span { font-size: 14px; font-weight: 700; color: var(--brand); }
+.progress-bar { height: 8px; background: #eceef6; border-radius: 999px; margin-top: 8px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--grad); border-radius: 999px; transition: width 0.3s ease; }
+
+.guided-step h3 { margin: 0 0 6px; font-size: 20px; }
+.phrase-box {
+  background: var(--brand-soft); border: 1px solid #dcdfff; border-radius: 10px;
+  padding: 10px 14px; margin: 12px 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+}
+.phrase-label { font-size: 13px; font-weight: 700; color: var(--brand); flex: 0 0 auto; }
+.phrase-text { font-size: 14px; color: #2a3050; }
+
+.guided-nav { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+
+.guided-log { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.guided-log-item {
+  display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px;
+  border-radius: 8px; cursor: pointer; font-size: 13.5px; transition: background 0.12s;
+}
+.guided-log-item:hover { background: var(--bg); }
+.guided-log-item.current { background: var(--brand-soft); }
+.gl-label { font-weight: 600; }
+.gl-note { color: var(--muted); }
+
+.countdown-box { text-align: center; padding: 20px 0; }
+.countdown-num {
+  font-size: 72px; font-weight: 800; color: var(--brand); line-height: 1;
+  text-align: center; padding: 24px 0;
+}

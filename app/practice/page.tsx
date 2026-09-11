@@ -3,10 +3,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FRAMEWORKS } from '@/lib/frameworks';
 import { SCENARIOS } from '@/lib/scenarios';
+import { TOPICS, STEP_PHRASES, IMPROMPTU } from '@/lib/topics';
 import { analyzeTranscript, FILLER_WORDS, type AnalysisResult, type Dimension } from '@/lib/analysis';
 
 const FREE_DAILY = 5;
 const HISTORY_KEY = 'hb_history';
+
+type Mode = 'free' | 'guided' | 'impromptu';
 
 interface HistoryItem {
   ts: number;
@@ -96,9 +99,19 @@ function ScoreGauge({ score }: { score: number }) {
 
 export default function PracticePage() {
   const [tab, setTab] = useState<'practice' | 'rewrite'>('practice');
+  const [mode, setMode] = useState<Mode>('free');
 
   const [scenarioId, setScenarioId] = useState('weekly');
   const [frameworkId, setFrameworkId] = useState('star');
+  const [topicIdx, setTopicIdx] = useState(0);
+  const [customTopic, setCustomTopic] = useState('');
+  const [guidedIdx, setGuidedIdx] = useState(0);
+  const [guidedTexts, setGuidedTexts] = useState<string[]>([]);
+  const [guidedNotes, setGuidedNotes] = useState<string[]>([]);
+  const [guidedDurs, setGuidedDurs] = useState<number[]>([]);
+  const [thinkPhase, setThinkPhase] = useState<'idle' | 'thinking' | 'recording'>('idle');
+  const [thinkLeft, setThinkLeft] = useState(0);
+
   const [isRecording, setIsRecording] = useState(false);
   const [finalText, setFinalText] = useState('');
   const [interim, setInterim] = useState('');
@@ -130,6 +143,12 @@ export default function PracticePage() {
 
   const framework = useMemo(() => FRAMEWORKS.find((f) => f.id === frameworkId)!, [frameworkId]);
   const scenario = useMemo(() => SCENARIOS.find((s) => s.id === scenarioId)!, [scenarioId]);
+  const phrases = STEP_PHRASES[frameworkId] || [];
+
+  const libraryTopics = TOPICS[scenarioId] || [];
+  const libraryTopic = libraryTopics.length ? libraryTopics[topicIdx % libraryTopics.length] : '';
+  const impromptuTopic = IMPROMPTU[topicIdx % IMPROMPTU.length];
+  const displayTopic = customTopic.trim() || (mode === 'impromptu' ? impromptuTopic : libraryTopic);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -145,16 +164,31 @@ export default function PracticePage() {
   }, []);
 
   const copyText = useCallback(async (text: string, label = '已复制到剪贴板') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(label);
-    } catch {
-      showToast('复制失败，请手动选择复制');
-    }
+    try { await navigator.clipboard.writeText(text); showToast(label); }
+    catch { showToast('复制失败，请手动选择复制'); }
   }, [showToast]);
 
   const clearTimer = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
+
+  const cancelRecording = () => {
+    if (recRef.current) { try { recRef.current.stop(); } catch { /* ignore */ } recRef.current = null; }
+    setIsRecording(false);
+    clearTimer();
+  };
+
+  const switchMode = (m: Mode) => {
+    cancelRecording();
+    setResult(null);
+    setMode(m);
+    setGuidedIdx(0);
+    setGuidedTexts([]);
+    setGuidedNotes([]);
+    setGuidedDurs([]);
+    setThinkPhase('idle');
+    setThinkLeft(0);
+    setNotice('');
   };
 
   const requestAi = useCallback(
@@ -220,7 +254,7 @@ export default function PracticePage() {
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) {
       setSupported(false);
-      setNotice('当前浏览器不支持语音识别，请换用 Chrome / Edge，或在下方「粘贴文字分析」。');
+      setNotice('当前浏览器不支持语音识别，请换用 Chrome / Edge，或在「粘贴文字分析」。');
       return;
     }
     setSupported(true);
@@ -234,7 +268,6 @@ export default function PracticePage() {
     interimRef.current = '';
     setFinalText('');
     setInterim('');
-    setResult(null);
     setAiFeedback('');
     setAiError('');
     setNotice('');
@@ -271,6 +304,14 @@ export default function PracticePage() {
     }, 1000);
   }, []);
 
+  // 即兴问答：思考倒计时结束自动开始录音
+  useEffect(() => {
+    if (thinkPhase !== 'thinking') return;
+    if (thinkLeft <= 0) { start(); setThinkPhase('recording'); return; }
+    const t = setTimeout(() => setThinkLeft((v) => v - 1), 1000);
+    return () => clearTimeout(t);
+  }, [thinkPhase, thinkLeft, start]);
+
   const stop = useCallback(() => {
     if (recRef.current) { const r = recRef.current; recRef.current = null; try { r.stop(); } catch { /* ignore */ } }
     setIsRecording(false);
@@ -278,8 +319,37 @@ export default function PracticePage() {
     const dur = Math.max(1, Math.round((Date.now() - startRef.current) / 1000));
     setDurationSec(dur);
     const text = (finalRef.current + interimRef.current).trim();
-    finalize(text, dur, scenario.label, framework.name);
-  }, [finalize, scenario.label, framework.name]);
+
+    if (mode === 'guided') {
+      const idx = guidedIdx;
+      const newTexts = [...guidedTexts];
+      newTexts[idx] = text;
+      const r = text ? analyzeTranscript(text, dur) : null;
+      const newNotes = [...guidedNotes];
+      newNotes[idx] = r ? `${r.charCount} 字 · 填充词 ${r.fillerTotal} 处` : '（未录到内容）';
+      const newDurs = [...guidedDurs];
+      newDurs[idx] = dur;
+      setGuidedTexts(newTexts);
+      setGuidedNotes(newNotes);
+      setGuidedDurs(newDurs);
+      setFinalText('');
+      setInterim('');
+      if (idx < framework.steps.length - 1) {
+        setGuidedIdx(idx + 1);
+        showToast(`第 ${idx + 1} 步已记录，进入第 ${idx + 2} 步`);
+      } else {
+        const combined = framework.steps
+          .map((s, i) => newTexts[i])
+          .filter((t) => t && t.trim())
+          .join('\n');
+        const totalDur = newDurs.reduce((a, b) => a + b, 0) || dur;
+        if (mode === 'guided') finalize(combined || text, totalDur, scenario.label, framework.name);
+      }
+    } else {
+      finalize(text, dur, scenario.label, framework.name);
+      if (mode === 'impromptu') setThinkPhase('idle');
+    }
+  }, [mode, guidedIdx, guidedTexts, guidedNotes, guidedDurs, framework, scenario.label, finalize, showToast]);
 
   const analyzeTyped = () => {
     if (!typedText.trim()) { setNotice('请先粘贴或输入一段汇报文字。'); return; }
@@ -322,6 +392,8 @@ export default function PracticePage() {
   const goodScore = (s: number) => (s >= 70 ? 'good' : s >= 50 ? 'mid' : 'bad');
   const trendScores = useMemo(() => [...history].slice(0, 8).reverse().map((h) => h.score), [history]);
 
+  const pickTopic = () => setTopicIdx((i) => i + 1);
+
   return (
     <main style={{ paddingBottom: 72 }}>
       <div className="practice-hero">
@@ -330,15 +402,14 @@ export default function PracticePage() {
         <div className="container">
           <div className="practice-head">
             <div>
-              <h1>汇报排练</h1>
+              <h1>沟通汇报训练</h1>
               <p className="muted" style={{ margin: 0 }}>
-                练一次，胜过在心里默念十遍。
+                三种训练模式，把表达练成肌肉记忆。
                 {quota > 0 ? ` 今日剩余免费次数：${quota} / ${FREE_DAILY}` : ' 今日免费次数已用完，明天再来练。'}
               </p>
             </div>
             <span className="quota-pill">✨ 无需注册 · 数据不上传</span>
           </div>
-
           <div className="tabs">
             <button className={`tab-btn ${tab === 'practice' ? 'on' : ''}`} onClick={() => setTab('practice')}>🎙️ 练口语</button>
             <button className={`tab-btn ${tab === 'rewrite' ? 'on' : ''}`} onClick={() => setTab('rewrite')}>✍️ 写汇报稿</button>
@@ -347,224 +418,319 @@ export default function PracticePage() {
       </div>
 
       <div className="container">
-      {tab === 'practice' ? (
-        <div className="flow" style={{ paddingTop: 24 }}>
-          {/* 第 1 步：配置 */}
-          <section className="card" style={{ padding: '20px 22px' }}>
-            <div className="setup-row">
-              <span className="setup-label">场景</span>
-              <div className="setup-pills">
-                {SCENARIOS.map((s) => (
-                  <button key={s.id} className={s.id === scenarioId ? 'chip chip-on' : 'chip'} onClick={() => setScenarioId(s.id)} type="button" title={s.hint}>
-                    {s.emoji} {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="setup-row">
-              <span className="setup-label">框架</span>
-              <div className="setup-pills">
-                {FRAMEWORKS.map((f) => (
-                  <button key={f.id} className={f.id === frameworkId ? 'chip chip-on' : 'chip'} onClick={() => setFrameworkId(f.id)} type="button" title={f.desc}>
-                    {f.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="fw-steps">
-              <span className="fw-steps-label">结构</span>
-              {framework.steps.map((s, i) => (
-                <Fragment key={s.key}>
-                  {i > 0 && <span className="fw-arrow">→</span>}
-                  <span className="fw-step-chip" title={s.hint}>{s.label}</span>
-                </Fragment>
-              ))}
-            </div>
-          </section>
-
-          {/* 第 2 步：开口练 */}
-          <section className="card stage">
-            <button
-              className={`rec-btn ${isRecording ? 'recording' : ''}`}
-              onClick={isRecording ? stop : start}
-              disabled={!isRecording && quota === 0}
-              type="button"
-              aria-label={isRecording ? '结束并分析' : '开始录音'}
-            >
-              {isRecording ? '结束' : '🎤'}
-            </button>
-            {isRecording ? <div className="rec-timer">{fmt(durationSec)}</div> : <div className="rec-idle">开始练习</div>}
-            {isRecording && (
-              <div className="wave" aria-hidden="true">
-                {Array.from({ length: 26 }).map((_, i) => (
-                  <span key={i} style={{ animationDelay: `${i * 0.045}s` }} />
-                ))}
-              </div>
-            )}
-            <p className="rec-hint">
-              {isRecording ? '正在实时转写，说完了点「结束」' : quota === 0 ? '今日额度已用完，明天再来练' : '点击开始，允许麦克风权限（推荐 Chrome / Edge）'}
-            </p>
-
-            <div className="transcript-wrap">
-              <div className="transcript-box">
-                <div className="transcript-label">
-                  <span>实时转写</span>
-                  {isRecording && <span className="live-dot">● 录音中</span>}
-                </div>
-                <p className="transcript">
-                  {finalText ? highlightFillers(finalText) : '开始录音后，你说的话会出现在这里，填充词会自动标红。'}
-                  {interim ? <em className="interim">{highlightFillers(interim)}</em> : null}
-                </p>
-              </div>
-            </div>
-
-            {notice && <p className="notice" style={{ marginTop: 12 }}>{notice}</p>}
-
-            <details className="paste-details">
-              <summary>没有麦克风？粘贴文字分析</summary>
-              <div style={{ marginTop: 12 }}>
-                <textarea
-                  className="type-box" rows={4}
-                  placeholder="把你要汇报 / 要演讲的稿子粘贴到这里（语速按 200 字/分钟估算）"
-                  value={typedText} onChange={(e) => setTypedText(e.target.value)}
-                />
-                <button className="btn btn-ghost btn-sm" onClick={analyzeTyped} style={{ marginTop: 10 }}>分析这段文字</button>
-              </div>
-            </details>
-          </section>
-
-          {/* 第 3 步：看结果 */}
-          {result && (
-            <section className="card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <h3 style={{ margin: 0 }}>📊 分析结果</h3>
-                <span className="small muted">{scenario.emoji} {scenario.label} · {framework.name}</span>
-              </div>
-
-              <div className="results-top">
-                <ScoreGauge score={result.localScore} />
-                <div className="results-side">
-                  <div className="score-meta">
-                    <div>字数 {result.charCount} · 时长 {fmt(result.durationSec)} · 语速 {result.charsPerMin} 字/分</div>
-                    <div style={{ marginTop: 4 }}>填充词 {result.fillerTotal} 处 · 每100字 {result.fillerRatio}</div>
-                  </div>
-                  {result.fillers.length > 0 && (
-                    <div className="filler-chips" style={{ marginBottom: 0 }}>
-                      {result.fillers.map((f) => <span key={f.word} className="filler-chip">{f.word} ×{f.count}</span>)}
-                    </div>
-                  )}
+        {tab === 'practice' ? (
+          <div className="flow" style={{ paddingTop: 24 }}>
+            {/* 配置：模式 + 场景 + 框架 + 题目 */}
+            <section className="card" style={{ padding: '20px 22px' }}>
+              <div className="setup-row">
+                <span className="setup-label">模式</span>
+                <div className="setup-pills">
+                  <button className={mode === 'free' ? 'chip chip-on' : 'chip'} onClick={() => switchMode('free')} type="button">自由练习</button>
+                  <button className={mode === 'guided' ? 'chip chip-on' : 'chip'} onClick={() => switchMode('guided')} type="button">分步引导</button>
+                  <button className={mode === 'impromptu' ? 'chip chip-on' : 'chip'} onClick={() => switchMode('impromptu')} type="button">即兴问答</button>
                 </div>
               </div>
-
-              <div className="radar-wrap" style={{ marginTop: 8 }}>
-                <RadarChart dimensions={result.dimensions} />
+              <div className="setup-row">
+                <span className="setup-label">场景</span>
+                <div className="setup-pills">
+                  {SCENARIOS.map((s) => (
+                    <button key={s.id} className={s.id === scenarioId ? 'chip chip-on' : 'chip'} onClick={() => { setScenarioId(s.id); setTopicIdx(0); }} type="button" title={s.hint}>
+                      {s.emoji} {s.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="dim-legend">
-                {result.dimensions.map((d) => (
-                  <div className="dim-item" key={d.key}><b>{d.label} {d.score}</b> <span className="dn">· {d.note}</span></div>
-                ))}
+              <div className="setup-row">
+                <span className="setup-label">框架</span>
+                <div className="setup-pills">
+                  {FRAMEWORKS.map((f) => (
+                    <button key={f.id} className={f.id === frameworkId ? 'chip chip-on' : 'chip'} onClick={() => setFrameworkId(f.id)} type="button" title={f.desc}>
+                      {f.name}
+                    </button>
+                  ))}
+                </div>
               </div>
+              {mode !== 'impromptu' && (
+                <div className="fw-steps">
+                  <span className="fw-steps-label">结构</span>
+                  {framework.steps.map((s, i) => (
+                    <Fragment key={s.key}>
+                      {i > 0 && <span className="fw-arrow">→</span>}
+                      <span className="fw-step-chip" title={s.hint}>{s.label}</span>
+                    </Fragment>
+                  ))}
+                </div>
+              )}
 
-              <ul className="result-notes" style={{ marginTop: 14 }}>
-                <li>{result.pacingNote}</li>
-                {result.structureNotes.map((n, i) => <li key={i}>{n}</li>)}
-              </ul>
-
-              <div className="divider" />
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <h4 style={{ margin: 0 }}>🤖 AI 教练点评</h4>
-                {aiFeedback && !aiLoading && <button className="copy-btn" onClick={() => copyText(aiFeedback, '点评已复制')}>复制</button>}
+              <div className="topic-box">
+                <span className="topic-label">🎯 {mode === 'impromptu' ? '随机题' : '本次练习题目'}</span>
+                <p className="topic-text">{displayTopic || '点「换一题」抽一道题，或输入你自己的题目'}</p>
+                <div className="topic-actions">
+                  <button className="btn btn-ghost btn-sm" onClick={pickTopic}>🎲 换一题</button>
+                  <input
+                    className="topic-input"
+                    placeholder="或输入你自己的题目…"
+                    value={customTopic}
+                    onChange={(e) => setCustomTopic(e.target.value)}
+                  />
+                </div>
               </div>
-              {aiLoading ? <p className="muted">AI 正在点评……</p>
-                : aiError ? <p className="notice">{aiError}</p>
-                : aiFeedback ? <p className="ai-feedback">{aiFeedback}</p>
-                : <p className="muted">（点评内容在此显示）</p>}
             </section>
-          )}
 
-          {/* 历史 */}
-          {history.length > 0 && (
-            <section className="card history" style={{ padding: '20px 22px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h4 style={{ margin: 0 }}>🕘 最近练习</h4>
-                {history.length > 1 && (
-                  <div className="trend" style={{ width: '40%', height: 40, margin: 0 }} aria-label="进步趋势">
-                    {trendScores.map((s, i) => (
-                      <div key={i} className="trend-bar" style={{ height: `${Math.max(8, s)}%` }} title={`${s} 分`} />
+            {/* 自由练习 / 即兴：录音区 */}
+            {mode !== 'guided' && (
+              <section className="card stage">
+                {mode === 'impromptu' && thinkPhase === 'idle' && (
+                  <div className="countdown-box">
+                    <p className="muted">抽到题了？先想 15 秒，再开口。</p>
+                    <button className="btn btn-primary" onClick={() => { setThinkLeft(15); setThinkPhase('thinking'); }}>🧠 开始准备（15 秒）</button>
+                  </div>
+                )}
+                {mode === 'impromptu' && thinkPhase === 'thinking' && (
+                  <div className="countdown-num">{thinkLeft}</div>
+                )}
+                {mode !== 'impromptu' || thinkPhase === 'recording' ? (
+                  <>
+                    <button
+                      className={`rec-btn ${isRecording ? 'recording' : ''}`}
+                      onClick={isRecording ? stop : start}
+                      disabled={!isRecording && quota === 0}
+                      type="button"
+                      aria-label={isRecording ? '结束并分析' : '开始录音'}
+                    >
+                      {isRecording ? '结束' : '🎤'}
+                    </button>
+                    {isRecording ? <div className="rec-timer">{fmt(durationSec)}</div> : <div className="rec-idle">{mode === 'impromptu' ? '开始回答' : '开始练习'}</div>}
+                    {isRecording && (
+                      <div className="wave" aria-hidden="true">
+                        {Array.from({ length: 26 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.045}s` }} />)}
+                      </div>
+                    )}
+                    <p className="rec-hint">
+                      {isRecording ? '正在实时转写，说完了点「结束」' : quota === 0 ? '今日额度已用完，明天再来练' : '点击开始，允许麦克风权限（推荐 Chrome / Edge）'}
+                    </p>
+                  </>
+                ) : null}
+
+                <div className="transcript-wrap">
+                  <div className="transcript-box">
+                    <div className="transcript-label">
+                      <span>实时转写</span>
+                      {isRecording && <span className="live-dot">● 录音中</span>}
+                    </div>
+                    <p className="transcript">
+                      {finalText ? highlightFillers(finalText) : '开始录音后，你说的话会出现在这里，填充词会自动标红。'}
+                      {interim ? <em className="interim">{highlightFillers(interim)}</em> : null}
+                    </p>
+                  </div>
+                </div>
+
+                {notice && <p className="notice" style={{ marginTop: 12 }}>{notice}</p>}
+
+                <details className="paste-details">
+                  <summary>没有麦克风？粘贴文字分析</summary>
+                  <div style={{ marginTop: 12 }}>
+                    <textarea className="type-box" rows={4} placeholder="把你要汇报 / 要演讲的稿子粘贴到这里（语速按 200 字/分钟估算）" value={typedText} onChange={(e) => setTypedText(e.target.value)} />
+                    <button className="btn btn-ghost btn-sm" onClick={analyzeTyped} style={{ marginTop: 10 }}>分析这段文字</button>
+                  </div>
+                </details>
+              </section>
+            )}
+
+            {/* 分步引导 */}
+            {mode === 'guided' && (
+              <section className="card">
+                <div className="guided-progress">
+                  <span>第 {guidedIdx + 1} 步 / 共 {framework.steps.length} 步</span>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${((guidedIdx + 1) / framework.steps.length) * 100}%` }} />
+                  </div>
+                </div>
+
+                <div className="guided-step">
+                  <h3>{framework.steps[guidedIdx].label}</h3>
+                  <p className="muted">{framework.steps[guidedIdx].hint}</p>
+                  <div className="phrase-box">
+                    <span className="phrase-label">💡 万能句式</span>
+                    <span className="phrase-text">「{phrases[guidedIdx] || '用一句话说清楚这一步'}」</span>
+                  </div>
+
+                  <div className="rec-zone">
+                    <button
+                      className={`rec-btn ${isRecording ? 'recording' : ''}`}
+                      onClick={isRecording ? stop : start}
+                      disabled={!isRecording && quota === 0}
+                      type="button"
+                    >
+                      {isRecording ? '结束' : '🎤'}
+                    </button>
+                    {isRecording ? <div className="rec-timer">{fmt(durationSec)}</div> : <div className="rec-idle">录这一步</div>}
+                    {isRecording && (
+                      <div className="wave" aria-hidden="true">
+                        {Array.from({ length: 22 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.05}s` }} />)}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="transcript-box">
+                    <div className="transcript-label">
+                      <span>本步转写</span>
+                      {isRecording && <span className="live-dot">● 录音中</span>}
+                    </div>
+                    <p className="transcript">
+                      {finalText ? highlightFillers(finalText) : '录这一步要说的话…'}
+                      {interim ? <em className="interim">{highlightFillers(interim)}</em> : null}
+                    </p>
+                  </div>
+
+                  <div className="guided-nav">
+                    <button className="btn btn-ghost btn-sm" onClick={() => setGuidedIdx((i) => Math.max(0, i - 1))} disabled={guidedIdx === 0}>← 上一步</button>
+                    {guidedIdx < framework.steps.length - 1
+                      ? <button className="btn btn-ghost btn-sm" onClick={() => setGuidedIdx((i) => Math.min(framework.steps.length - 1, i + 1))}>跳过 →</button>
+                      : <span className="muted small">这是最后一步，录完点「结束」出结果</span>}
+                  </div>
+                </div>
+
+                {/* 已记录的步骤 */}
+                {guidedNotes.some((n) => n) && (
+                  <div className="guided-log">
+                    {framework.steps.map((s, i) => (
+                      <div key={s.key} className={`guided-log-item ${i === guidedIdx ? 'current' : ''}`} onClick={() => setGuidedIdx(i)}>
+                        <span className="gl-label">{i + 1}. {s.label}</span>
+                        <span className="gl-note">{guidedNotes[i] || '未练'}</span>
+                      </div>
                     ))}
                   </div>
                 )}
-              </div>
-              {history.slice(0, 6).map((h, i) => (
-                <div className="history-item" key={h.ts + '-' + i}>
-                  <span className="sc">{h.scenario} · {h.framework} · {h.chars}字 · {h.cpm || '-'}字/分</span>
-                  <span className={`s ${goodScore(h.score)}`}>{h.score} 分</span>
+              </section>
+            )}
+
+            {/* 结果 */}
+            {result && (
+              <section className="card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <h3 style={{ margin: 0 }}>📊 分析结果</h3>
+                  <span className="small muted">{scenario.emoji} {scenario.label} · {framework.name}</span>
                 </div>
-              ))}
-            </section>
-          )}
-        </div>
-      ) : (
-        <div className="flow" style={{ paddingTop: 24 }}>
-          <section className="card" style={{ padding: '22px' }}>
-            <h3 style={{ margin: '0 0 4px' }}>✍️ AI 帮你把要点写成汇报稿</h3>
-            <p className="muted small" style={{ margin: '0 0 16px' }}>把你零散的素材丢进来，AI 按框架帮你整理成一段能直接照着说的汇报。</p>
 
-            <div className="setup-row">
-              <span className="setup-label">场景</span>
-              <div className="setup-pills">
-                {SCENARIOS.map((s) => (
-                  <button key={s.id} className={s.id === rwScenario ? 'chip chip-on' : 'chip'} onClick={() => setRwScenario(s.id)} type="button" title={s.hint}>
-                    {s.emoji} {s.label}
-                  </button>
+                <div className="results-top">
+                  <ScoreGauge score={result.localScore} />
+                  <div className="results-side">
+                    <div className="score-meta">
+                      <div>字数 {result.charCount} · 时长 {fmt(result.durationSec)} · 语速 {result.charsPerMin} 字/分</div>
+                      <div style={{ marginTop: 4 }}>填充词 {result.fillerTotal} 处 · 每100字 {result.fillerRatio}</div>
+                    </div>
+                    {result.fillers.length > 0 && (
+                      <div className="filler-chips" style={{ marginBottom: 0 }}>
+                        {result.fillers.map((f) => <span key={f.word} className="filler-chip">{f.word} ×{f.count}</span>)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="radar-wrap" style={{ marginTop: 8 }}>
+                  <RadarChart dimensions={result.dimensions} />
+                </div>
+                <div className="dim-legend">
+                  {result.dimensions.map((d) => (
+                    <div className="dim-item" key={d.key}><b>{d.label} {d.score}</b> <span className="dn">· {d.note}</span></div>
+                  ))}
+                </div>
+
+                <ul className="result-notes" style={{ marginTop: 14 }}>
+                  <li>{result.pacingNote}</li>
+                  {result.structureNotes.map((n, i) => <li key={i}>{n}</li>)}
+                </ul>
+
+                <div className="divider" />
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <h4 style={{ margin: 0 }}>🤖 AI 教练点评</h4>
+                  {aiFeedback && !aiLoading && <button className="copy-btn" onClick={() => copyText(aiFeedback, '点评已复制')}>复制</button>}
+                </div>
+                {aiLoading ? <p className="muted">AI 正在点评……</p>
+                  : aiError ? <p className="notice">{aiError}</p>
+                  : aiFeedback ? <p className="ai-feedback">{aiFeedback}</p>
+                  : <p className="muted">（点评内容在此显示）</p>}
+
+                <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" onClick={() => { setResult(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>再练一遍 →</button>
+                </div>
+              </section>
+            )}
+
+            {/* 历史 */}
+            {history.length > 0 && (
+              <section className="card history" style={{ padding: '20px 22px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h4 style={{ margin: 0 }}>🕘 最近练习</h4>
+                  {history.length > 1 && (
+                    <div className="trend" style={{ width: '40%', height: 40, margin: 0 }} aria-label="进步趋势">
+                      {trendScores.map((s, i) => <div key={i} className="trend-bar" style={{ height: `${Math.max(8, s)}%` }} title={`${s} 分`} />)}
+                    </div>
+                  )}
+                </div>
+                {history.slice(0, 6).map((h, i) => (
+                  <div className="history-item" key={h.ts + '-' + i}>
+                    <span className="sc">{h.scenario} · {h.framework} · {h.chars}字 · {h.cpm || '-'}字/分</span>
+                    <span className={`s ${goodScore(h.score)}`}>{h.score} 分</span>
+                  </div>
                 ))}
-              </div>
-            </div>
-            <div className="setup-row" style={{ marginBottom: 14 }}>
-              <span className="setup-label">框架</span>
-              <div className="setup-pills">
-                {FRAMEWORKS.map((f) => (
-                  <button key={f.id} className={f.id === rwFramework ? 'chip chip-on' : 'chip'} onClick={() => setRwFramework(f.id)} type="button" title={f.desc}>
-                    {f.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <textarea
-              className="type-box" rows={7}
-              placeholder={'例：本周上线了新功能，但转化率没涨。我做了什么、结果如何……\n把你的要点、数据、困惑都写进来，越具体越好。'}
-              value={rwNotes} onChange={(e) => setRwNotes(e.target.value)}
-            />
-            <div style={{ marginTop: 12 }}>
-              <button className="btn btn-primary" onClick={doRewrite} disabled={rwLoading}>
-                {rwLoading ? '生成中…' : '生成汇报稿'}
-              </button>
-            </div>
-            {rwError && <p className="notice" style={{ marginTop: 12 }}>{rwError}</p>}
-          </section>
-
-          {rwResult && (
+              </section>
+            )}
+          </div>
+        ) : (
+          <div className="flow" style={{ paddingTop: 24 }}>
             <section className="card" style={{ padding: '22px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <h3 style={{ margin: 0 }}>📄 生成结果</h3>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="copy-btn" onClick={() => copyText(rwResult, '汇报稿已复制')}>复制</button>
-                  <button className="copy-btn" onClick={useDraftForPractice}>用这段练口语 →</button>
+              <h3 style={{ margin: '0 0 4px' }}>✍️ AI 帮你把要点写成汇报稿</h3>
+              <p className="muted small" style={{ margin: '0 0 16px' }}>把你零散的素材丢进来，AI 按框架帮你整理成一段能直接照着说的汇报。</p>
+              <div className="setup-row">
+                <span className="setup-label">场景</span>
+                <div className="setup-pills">
+                  {SCENARIOS.map((s) => (
+                    <button key={s.id} className={s.id === rwScenario ? 'chip chip-on' : 'chip'} onClick={() => setRwScenario(s.id)} type="button" title={s.hint}>
+                      {s.emoji} {s.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <p className="rewrite-result">{rwResult}</p>
+              <div className="setup-row" style={{ marginBottom: 14 }}>
+                <span className="setup-label">框架</span>
+                <div className="setup-pills">
+                  {FRAMEWORKS.map((f) => (
+                    <button key={f.id} className={f.id === rwFramework ? 'chip chip-on' : 'chip'} onClick={() => setRwFramework(f.id)} type="button" title={f.desc}>
+                      {f.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <textarea className="type-box" rows={7} placeholder={'例：本周上线了新功能，但转化率没涨。我做了什么、结果如何……\n把你的要点、数据、困惑都写进来，越具体越好。'} value={rwNotes} onChange={(e) => setRwNotes(e.target.value)} />
+              <div style={{ marginTop: 12 }}>
+                <button className="btn btn-primary" onClick={doRewrite} disabled={rwLoading}>{rwLoading ? '生成中…' : '生成汇报稿'}</button>
+              </div>
+              {rwError && <p className="notice" style={{ marginTop: 12 }}>{rwError}</p>}
             </section>
-          )}
-        </div>
-      )}
 
-      {!supported && (
-        <p className="notice" style={{ marginTop: 16 }}>
-          你的浏览器不支持语音识别，请用 Chrome / Edge 打开，或使用「粘贴文字」功能。
-        </p>
-      )}
+            {rwResult && (
+              <section className="card" style={{ padding: '22px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <h3 style={{ margin: 0 }}>📄 生成结果</h3>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="copy-btn" onClick={() => copyText(rwResult, '汇报稿已复制')}>复制</button>
+                    <button className="copy-btn" onClick={useDraftForPractice}>用这段练口语 →</button>
+                  </div>
+                </div>
+                <p className="rewrite-result">{rwResult}</p>
+              </section>
+            )}
+          </div>
+        )}
+
+        {!supported && (
+          <p className="notice" style={{ marginTop: 16 }}>
+            你的浏览器不支持语音识别，请用 Chrome / Edge 打开，或使用「粘贴文字」功能。
+          </p>
+        )}
       </div>
 
       {toast && <div className="toast">{toast}</div>}
