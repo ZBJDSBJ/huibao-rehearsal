@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     '工作汇报怎么写', '述职报告怎么准备', '演讲紧张怎么办', '面试表达训练',
     '周报怎么写', '汇报排练工具', '表达能力提升', 'AI 汇报教练',
   ],
+  icons: {
+    icon: '/icon.svg',
+  },
   openGraph: {
     title: '汇报排练 · 表达训练 — 网页版 AI 汇报教练',
     description: '对着浏览器麦克风练汇报，实时转写 + 填充词检测 + 表达框架 + AI 反馈，打开即用。',
