@@ -346,3 +346,33 @@ button { font-family: inherit; }
 .trend { display: flex; align-items: flex-end; gap: 6px; height: 56px; margin: 10px 0 4px; }
 .trend-bar { flex: 1; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, #7c3aed, #4f46e5); min-height: 4px; position: relative; }
 .trend-bar .tv { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--muted); font-weight: 600; }
+
+/* ============ 练习页：单列三步流 ============ */
+.flow { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+.setup-row { display: flex; align-items: flex-start; gap: 14px; }
+.setup-row + .setup-row { margin-top: 14px; }
+.setup-label { flex: 0 0 42px; font-size: 14px; font-weight: 700; color: var(--muted); padding-top: 7px; }
+.setup-pills { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+
+.fw-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.fw-steps-label { font-size: 13px; color: var(--muted); font-weight: 700; margin-right: 2px; }
+.fw-step-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--brand-soft); color: var(--brand); border-radius: 8px; padding: 5px 11px; font-size: 13px; font-weight: 600; }
+.fw-step-chip small { color: var(--muted); font-weight: 400; }
+.fw-arrow { color: #c6cbd8; font-size: 13px; }
+
+.stage { text-align: center; padding: 26px 20px 22px; }
+.stage .rec-timer { font-size: 30px; font-weight: 800; }
+.rec-idle { font-size: 19px; font-weight: 700; color: var(--ink); margin-top: 10px; }
+.stage .rec-hint { max-width: 320px; margin-left: auto; margin-right: auto; }
+.transcript-wrap { text-align: left; margin-top: 18px; }
+
+.paste-details { text-align: left; margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.paste-details summary { cursor: pointer; font-size: 14px; color: var(--muted); font-weight: 600; list-style: none; user-select: none; }
+.paste-details summary:hover { color: var(--brand); }
+.paste-details summary::before { content: '▸ '; color: var(--brand); }
+.paste-details[open] summary::before { content: '▾ '; }
+
+.results-top { display: flex; align-items: center; gap: 20px; }
+.results-side { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+@media (max-width: 640px) { .results-top { flex-direction: column; align-items: flex-start; } }

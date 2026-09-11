@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FRAMEWORKS } from '@/lib/frameworks';
 import { SCENARIOS } from '@/lib/scenarios';
 import { analyzeTranscript, FILLER_WORDS, type AnalysisResult, type Dimension } from '@/lib/analysis';
@@ -47,7 +47,7 @@ function RadarChart({ dimensions }: { dimensions: Dimension[] }) {
   const dataPoly = dimensions.map((d, i) => { const p = pt(i, R * (d.score / 100)); return `${p.x},${p.y}`; }).join(' ');
 
   return (
-    <svg width="210" height="180" viewBox="0 0 160 160" role="img" aria-label="多维评分雷达图">
+    <svg width="230" height="200" viewBox="0 0 160 160" role="img" aria-label="多维评分雷达图">
       {[0.25, 0.5, 0.75, 1].map((r) => (
         <polygon key={r} points={poly(r)} fill="none" stroke="#e7e9f2" strokeWidth="1" />
       ))}
@@ -93,13 +93,6 @@ function ScoreGauge({ score }: { score: number }) {
     </div>
   );
 }
-
-const EMPTY_DIMS: Dimension[] = [
-  { key: 'a', label: '结构逻辑', score: 0, note: '' },
-  { key: 'b', label: '表达流畅', score: 0, note: '' },
-  { key: 'c', label: '词汇精准', score: 0, note: '' },
-  { key: 'd', label: '语速节奏', score: 0, note: '' },
-];
 
 export default function PracticePage() {
   const [tab, setTab] = useState<'practice' | 'rewrite'>('practice');
@@ -227,7 +220,7 @@ export default function PracticePage() {
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) {
       setSupported(false);
-      setNotice('当前浏览器不支持语音识别，请换用 Chrome / Edge，或直接在下方粘贴你的汇报文字。');
+      setNotice('当前浏览器不支持语音识别，请换用 Chrome / Edge，或在下方「粘贴文字分析」。');
       return;
     }
     setSupported(true);
@@ -348,158 +341,192 @@ export default function PracticePage() {
       </div>
 
       {tab === 'practice' ? (
-        <div className="panel">
-          <div className="card">
-            <div className="scenario-row">
-              {SCENARIOS.map((s) => (
-                <button key={s.id} className={s.id === scenarioId ? 'chip chip-on' : 'chip'} onClick={() => setScenarioId(s.id)} type="button">
-                  {s.emoji} {s.label}
-                </button>
-              ))}
-            </div>
-            <p className="muted small" style={{ margin: '0 0 10px' }}>当前场景：{scenario.emoji} {scenario.label} · {scenario.hint}</p>
-
-            <div className="scenario-row" style={{ marginTop: 6 }}>
-              {FRAMEWORKS.map((f) => (
-                <button key={f.id} className={f.id === frameworkId ? 'chip chip-on' : 'chip'} onClick={() => setFrameworkId(f.id)} type="button">
-                  {f.name}
-                </button>
-              ))}
-            </div>
-
-            <div className="framework-box">
-              {framework.steps.map((s) => (
-                <div key={s.key} className="framework-step">
-                  <span className="st">{s.label}</span>
-                  <span className="hi">{s.hint}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="rec-zone">
-              <button
-                className={`rec-btn ${isRecording ? 'recording' : ''}`}
-                onClick={isRecording ? stop : start}
-                disabled={!isRecording && quota === 0}
-                type="button"
-                aria-label={isRecording ? '结束并分析' : '开始录音'}
-              >
-                {isRecording ? '结束' : '录音'}
-              </button>
-              <div className="rec-timer">{isRecording ? fmt(durationSec) : '\u00A0'}</div>
-              {isRecording && (
-                <div className="wave" aria-hidden="true">
-                  {Array.from({ length: 26 }).map((_, i) => (
-                    <span key={i} style={{ animationDelay: `${i * 0.045}s` }} />
-                  ))}
-                </div>
-              )}
-              <p className="rec-hint">
-                {isRecording ? '正在实时转写，说完了点「结束」' : quota === 0 ? '今日额度已用完' : '点击开始，请允许麦克风权限（推荐 Chrome/Edge）'}
-              </p>
-            </div>
-
-            {notice && <p className="notice" style={{ marginTop: 10 }}>{notice}</p>}
-
-            <div className="transcript-box">
-              <div className="transcript-label">
-                <span>实时转写</span>
-                {isRecording && <span className="live-dot">● 录音中</span>}
+        <div className="flow">
+          {/* 第 1 步：配置 */}
+          <section className="card" style={{ padding: '20px 22px' }}>
+            <div className="setup-row">
+              <span className="setup-label">场景</span>
+              <div className="setup-pills">
+                {SCENARIOS.map((s) => (
+                  <button key={s.id} className={s.id === scenarioId ? 'chip chip-on' : 'chip'} onClick={() => setScenarioId(s.id)} type="button" title={s.hint}>
+                    {s.emoji} {s.label}
+                  </button>
+                ))}
               </div>
-              <p className="transcript">
-                {finalText ? highlightFillers(finalText) : '（开始录音后，你说的话会出现在这里，填充词会标红）'}
-                {interim ? <em className="interim">{highlightFillers(interim)}</em> : null}
-              </p>
+            </div>
+            <div className="setup-row">
+              <span className="setup-label">框架</span>
+              <div className="setup-pills">
+                {FRAMEWORKS.map((f) => (
+                  <button key={f.id} className={f.id === frameworkId ? 'chip chip-on' : 'chip'} onClick={() => setFrameworkId(f.id)} type="button" title={f.desc}>
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="fw-steps">
+              <span className="fw-steps-label">结构</span>
+              {framework.steps.map((s, i) => (
+                <Fragment key={s.key}>
+                  {i > 0 && <span className="fw-arrow">→</span>}
+                  <span className="fw-step-chip" title={s.hint}>{s.label}</span>
+                </Fragment>
+              ))}
+            </div>
+          </section>
+
+          {/* 第 2 步：开口练 */}
+          <section className="card stage">
+            <button
+              className={`rec-btn ${isRecording ? 'recording' : ''}`}
+              onClick={isRecording ? stop : start}
+              disabled={!isRecording && quota === 0}
+              type="button"
+              aria-label={isRecording ? '结束并分析' : '开始录音'}
+            >
+              {isRecording ? '结束' : '🎤'}
+            </button>
+            {isRecording ? <div className="rec-timer">{fmt(durationSec)}</div> : <div className="rec-idle">开始练习</div>}
+            {isRecording && (
+              <div className="wave" aria-hidden="true">
+                {Array.from({ length: 26 }).map((_, i) => (
+                  <span key={i} style={{ animationDelay: `${i * 0.045}s` }} />
+                ))}
+              </div>
+            )}
+            <p className="rec-hint">
+              {isRecording ? '正在实时转写，说完了点「结束」' : quota === 0 ? '今日额度已用完，明天再来练' : '点击开始，允许麦克风权限（推荐 Chrome / Edge）'}
+            </p>
+
+            <div className="transcript-wrap">
+              <div className="transcript-box">
+                <div className="transcript-label">
+                  <span>实时转写</span>
+                  {isRecording && <span className="live-dot">● 录音中</span>}
+                </div>
+                <p className="transcript">
+                  {finalText ? highlightFillers(finalText) : '开始录音后，你说的话会出现在这里，填充词会自动标红。'}
+                  {interim ? <em className="interim">{highlightFillers(interim)}</em> : null}
+                </p>
+              </div>
             </div>
 
-            <div className="divider" />
+            {notice && <p className="notice" style={{ marginTop: 12 }}>{notice}</p>}
 
-            <h4 style={{ margin: '0 0 8px' }}>没有麦克风？直接粘贴文字</h4>
-            <textarea
-              className="type-box" rows={4}
-              placeholder="把你要汇报 / 要演讲的稿子粘贴到这里，点下面按钮分析（语速按 200 字/分钟估算）"
-              value={typedText} onChange={(e) => setTypedText(e.target.value)}
-            />
-            <button className="btn btn-ghost btn-sm" onClick={analyzeTyped} style={{ marginTop: 10 }}>分析这段文字</button>
-          </div>
+            <details className="paste-details">
+              <summary>没有麦克风？粘贴文字分析</summary>
+              <div style={{ marginTop: 12 }}>
+                <textarea
+                  className="type-box" rows={4}
+                  placeholder="把你要汇报 / 要演讲的稿子粘贴到这里（语速按 200 字/分钟估算）"
+                  value={typedText} onChange={(e) => setTypedText(e.target.value)}
+                />
+                <button className="btn btn-ghost btn-sm" onClick={analyzeTyped} style={{ marginTop: 10 }}>分析这段文字</button>
+              </div>
+            </details>
+          </section>
 
-          <div className="card">
-            {!result ? (
-              <>
-                <h3 style={{ marginTop: 0 }}>📊 分析结果</h3>
-                <p className="muted">录音并点击「结束」后，这里会显示四维评分雷达、填充词统计、语速和 AI 教练点评。</p>
-                <div className="radar-wrap">
-                  <RadarChart dimensions={EMPTY_DIMS} />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="score-hero">
-                  <ScoreGauge score={result.localScore} />
+          {/* 第 3 步：看结果 */}
+          {result && (
+            <section className="card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <h3 style={{ margin: 0 }}>📊 分析结果</h3>
+                <span className="small muted">{scenario.emoji} {scenario.label} · {framework.name}</span>
+              </div>
+
+              <div className="results-top">
+                <ScoreGauge score={result.localScore} />
+                <div className="results-side">
                   <div className="score-meta">
-                    <div className="big">{scenario.emoji} {scenario.label} · {framework.name}</div>
                     <div>字数 {result.charCount} · 时长 {fmt(result.durationSec)} · 语速 {result.charsPerMin} 字/分</div>
-                    <div style={{ marginTop: 6 }}>填充词 {result.fillerTotal} 处 · 每100字 {result.fillerRatio}</div>
+                    <div style={{ marginTop: 4 }}>填充词 {result.fillerTotal} 处 · 每100字 {result.fillerRatio}</div>
                   </div>
+                  {result.fillers.length > 0 && (
+                    <div className="filler-chips" style={{ marginBottom: 0 }}>
+                      {result.fillers.map((f) => <span key={f.word} className="filler-chip">{f.word} ×{f.count}</span>)}
+                    </div>
+                  )}
                 </div>
+              </div>
 
-                <div className="radar-wrap">
-                  <RadarChart dimensions={result.dimensions} />
-                </div>
-                <div className="dim-legend">
-                  {result.dimensions.map((d) => (
-                    <div className="dim-item" key={d.key}><b>{d.label} {d.score}</b> <span className="dn">· {d.note}</span></div>
-                  ))}
-                </div>
+              <div className="radar-wrap" style={{ marginTop: 8 }}>
+                <RadarChart dimensions={result.dimensions} />
+              </div>
+              <div className="dim-legend">
+                {result.dimensions.map((d) => (
+                  <div className="dim-item" key={d.key}><b>{d.label} {d.score}</b> <span className="dn">· {d.note}</span></div>
+                ))}
+              </div>
 
-                {result.fillers.length > 0 && (
-                  <div className="filler-chips" style={{ marginTop: 12 }}>
-                    {result.fillers.map((f) => <span key={f.word} className="filler-chip">{f.word} ×{f.count}</span>)}
+              <ul className="result-notes" style={{ marginTop: 14 }}>
+                <li>{result.pacingNote}</li>
+                {result.structureNotes.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+
+              <div className="divider" />
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <h4 style={{ margin: 0 }}>🤖 AI 教练点评</h4>
+                {aiFeedback && !aiLoading && <button className="copy-btn" onClick={() => copyText(aiFeedback, '点评已复制')}>复制</button>}
+              </div>
+              {aiLoading ? <p className="muted">AI 正在点评……</p>
+                : aiError ? <p className="notice">{aiError}</p>
+                : aiFeedback ? <p className="ai-feedback">{aiFeedback}</p>
+                : <p className="muted">（点评内容在此显示）</p>}
+            </section>
+          )}
+
+          {/* 历史 */}
+          {history.length > 0 && (
+            <section className="card history" style={{ padding: '20px 22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h4 style={{ margin: 0 }}>🕘 最近练习</h4>
+                {history.length > 1 && (
+                  <div className="trend" style={{ width: '40%', height: 40, margin: 0 }} aria-label="进步趋势">
+                    {trendScores.map((s, i) => (
+                      <div key={i} className="trend-bar" style={{ height: `${Math.max(8, s)}%` }} title={`${s} 分`} />
+                    ))}
                   </div>
                 )}
-
-                <ul className="result-notes">
-                  <li>{result.pacingNote}</li>
-                  {result.structureNotes.map((n, i) => <li key={i}>{n}</li>)}
-                </ul>
-
-                <div className="divider" />
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <h4 style={{ margin: 0 }}>🤖 AI 教练点评</h4>
-                  {aiFeedback && !aiLoading && <button className="copy-btn" onClick={() => copyText(aiFeedback, '点评已复制')}>复制</button>}
+              </div>
+              {history.slice(0, 6).map((h, i) => (
+                <div className="history-item" key={h.ts + '-' + i}>
+                  <span className="sc">{h.scenario} · {h.framework} · {h.chars}字 · {h.cpm || '-'}字/分</span>
+                  <span className={`s ${goodScore(h.score)}`}>{h.score} 分</span>
                 </div>
-                {aiLoading ? <p className="muted">AI 正在点评……</p>
-                  : aiError ? <p className="notice">{aiError}</p>
-                  : aiFeedback ? <p className="ai-feedback">{aiFeedback}</p>
-                  : <p className="muted">（点评内容在此显示）</p>}
-              </>
-            )}
-          </div>
+              ))}
+            </section>
+          )}
         </div>
       ) : (
-        <div className="panel">
-          <div className="card">
-            <h3 style={{ marginTop: 0 }}>✍️ AI 帮你把要点写成汇报稿</h3>
-            <p className="muted small" style={{ margin: '0 0 14px' }}>把你零散的素材丢进来，AI 按框架帮你整理成一段能直接照着说的汇报。</p>
+        <div className="flow">
+          <section className="card" style={{ padding: '22px' }}>
+            <h3 style={{ margin: '0 0 4px' }}>✍️ AI 帮你把要点写成汇报稿</h3>
+            <p className="muted small" style={{ margin: '0 0 16px' }}>把你零散的素材丢进来，AI 按框架帮你整理成一段能直接照着说的汇报。</p>
 
-            <div className="scenario-row">
-              {SCENARIOS.map((s) => (
-                <button key={s.id} className={s.id === rwScenario ? 'chip chip-on' : 'chip'} onClick={() => setRwScenario(s.id)} type="button">
-                  {s.emoji} {s.label}
-                </button>
-              ))}
+            <div className="setup-row">
+              <span className="setup-label">场景</span>
+              <div className="setup-pills">
+                {SCENARIOS.map((s) => (
+                  <button key={s.id} className={s.id === rwScenario ? 'chip chip-on' : 'chip'} onClick={() => setRwScenario(s.id)} type="button" title={s.hint}>
+                    {s.emoji} {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="scenario-row">
-              {FRAMEWORKS.map((f) => (
-                <button key={f.id} className={f.id === rwFramework ? 'chip chip-on' : 'chip'} onClick={() => setRwFramework(f.id)} type="button">
-                  {f.name}
-                </button>
-              ))}
+            <div className="setup-row" style={{ marginBottom: 14 }}>
+              <span className="setup-label">框架</span>
+              <div className="setup-pills">
+                {FRAMEWORKS.map((f) => (
+                  <button key={f.id} className={f.id === rwFramework ? 'chip chip-on' : 'chip'} onClick={() => setRwFramework(f.id)} type="button" title={f.desc}>
+                    {f.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <textarea
-              className="type-box" rows={8}
+              className="type-box" rows={7}
               placeholder={'例：本周上线了新功能，但转化率没涨。我做了什么、结果如何……\n把你的要点、数据、困惑都写进来，越具体越好。'}
               value={rwNotes} onChange={(e) => setRwNotes(e.target.value)}
             />
@@ -509,45 +536,20 @@ export default function PracticePage() {
               </button>
             </div>
             {rwError && <p className="notice" style={{ marginTop: 12 }}>{rwError}</p>}
-          </div>
+          </section>
 
-          <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <h3 style={{ margin: 0 }}>📄 生成结果</h3>
-              {rwResult && (
+          {rwResult && (
+            <section className="card" style={{ padding: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <h3 style={{ margin: 0 }}>📄 生成结果</h3>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="copy-btn" onClick={() => copyText(rwResult, '汇报稿已复制')}>复制</button>
                   <button className="copy-btn" onClick={useDraftForPractice}>用这段练口语 →</button>
                 </div>
-              )}
-            </div>
-            {rwResult ? (
-              <p className="rewrite-result">{rwResult}</p>
-            ) : (
-              <p className="muted">生成后的汇报稿会显示在这里，你可以直接照着练，也可以一键转到「练口语」里再练一遍。</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {tab === 'practice' && history.length > 0 && (
-        <div className="card history">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h4 style={{ margin: 0 }}>🕘 最近练习</h4>
-            {history.length > 1 && (
-              <div className="trend" style={{ width: '40%', height: 40, margin: 0 }} aria-label="进步趋势">
-                {trendScores.map((s, i) => (
-                  <div key={i} className="trend-bar" style={{ height: `${Math.max(8, s)}%` }} title={`${s} 分`} />
-                ))}
               </div>
-            )}
-          </div>
-          {history.slice(0, 6).map((h, i) => (
-            <div className="history-item" key={h.ts + '-' + i}>
-              <span className="sc">{h.scenario} · {h.framework} · {h.chars}字 · {h.cpm || '-'}字/分</span>
-              <span className={`s ${goodScore(h.score)}`}>{h.score} 分</span>
-            </div>
-          ))}
+              <p className="rewrite-result">{rwResult}</p>
+            </section>
+          )}
         </div>
       )}
 
