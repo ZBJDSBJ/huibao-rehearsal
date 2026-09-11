@@ -5,6 +5,8 @@ import { FRAMEWORKS } from '@/lib/frameworks';
 import { SCENARIOS } from '@/lib/scenarios';
 import { TOPICS, STEP_PHRASES, IMPROMPTU } from '@/lib/topics';
 import { analyzeTranscript, FILLER_WORDS, type AnalysisResult, type Dimension } from '@/lib/analysis';
+import { useAuth } from '@/components/AuthProvider';
+import { getModelAnswer } from '@/lib/modelAnswers';
 
 const FREE_DAILY = 5;
 const HISTORY_KEY = 'hb_history';
@@ -133,6 +135,9 @@ export default function PracticePage() {
   const [rwResult, setRwResult] = useState('');
   const [rwLoading, setRwLoading] = useState(false);
   const [rwError, setRwError] = useState('');
+  const [needUpgrade, setNeedUpgrade] = useState(false);
+  const [rwUpgrade, setRwUpgrade] = useState(false);
+  const { user, plan, accessToken } = useAuth();
 
   const recRef = useRef<any>(null);
   const timerRef = useRef<number | null>(null);
@@ -195,10 +200,12 @@ export default function PracticePage() {
     async (text: string, scLabel: string) => {
       setAiLoading(true);
       setAiError('');
+      setNeedUpgrade(false);
+      setAiFeedback('');
       try {
         const res = await fetch('/api/feedback', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken || ''}` },
           body: JSON.stringify({
             transcript: text,
             scenarioLabel: scLabel,
@@ -209,6 +216,7 @@ export default function PracticePage() {
         const data = await res.json();
         if (data.feedback) setAiFeedback(data.feedback);
         else if (data.note) setAiFeedback(data.note);
+        else if (data.upgrade) setNeedUpgrade(true);
         else setAiError(data.error || '分析失败，请稍后重试');
       } catch {
         setAiError('网络错误，无法获取 AI 反馈');
@@ -216,7 +224,7 @@ export default function PracticePage() {
         setAiLoading(false);
       }
     },
-    [framework],
+    [framework, accessToken],
   );
 
   const finalize = useCallback(
@@ -361,25 +369,26 @@ export default function PracticePage() {
 
   const doRewrite = useCallback(async () => {
     if (!rwNotes.trim()) { setRwError('请先输入你的要点/素材。'); return; }
-    setRwLoading(true); setRwError(''); setRwResult('');
+    setRwLoading(true); setRwError(''); setRwResult(''); setRwUpgrade(false);
     const sc = SCENARIOS.find((s) => s.id === rwScenario)!;
     const fw = FRAMEWORKS.find((f) => f.id === rwFramework)!;
     try {
       const res = await fetch('/api/rewrite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken || ''}` },
         body: JSON.stringify({ scenarioLabel: sc.label, frameworkName: fw.name, frameworkSteps: fw.steps.map((s) => s.label), notes: rwNotes }),
       });
       const data = await res.json();
       if (data.draft) setRwResult(data.draft);
       else if (data.note) setRwError(data.note);
+      else if (data.upgrade) setRwUpgrade(true);
       else setRwError(data.error || '生成失败，请稍后重试');
     } catch {
       setRwError('网络错误，无法生成汇报稿');
     } finally {
       setRwLoading(false);
     }
-  }, [rwNotes, rwScenario, rwFramework]);
+  }, [rwNotes, rwScenario, rwFramework, accessToken]);
 
   const useDraftForPractice = () => {
     const cleaned = rwResult.replace(/【.*?】/g, '').replace(/^\s*$/gm, '').trim();
@@ -405,7 +414,8 @@ export default function PracticePage() {
               <h1>沟通汇报训练</h1>
               <p className="muted" style={{ margin: 0 }}>
                 三种训练模式，把表达练成肌肉记忆。
-                {quota > 0 ? ` 今日剩余免费次数：${quota} / ${FREE_DAILY}` : ' 今日免费次数已用完，明天再来练。'}
+                {plan === 'pro' ? ' ⭐ Pro 会员 · 无限练习'
+                  : quota > 0 ? ` 今日剩余免费次数：${quota} / ${FREE_DAILY}` : ' 今日免费次数已用完，明天再来练。'}
               </p>
             </div>
             <span className="quota-pill">✨ 无需注册 · 数据不上传</span>
@@ -648,10 +658,32 @@ export default function PracticePage() {
                   <h4 style={{ margin: 0 }}>🤖 AI 教练点评</h4>
                   {aiFeedback && !aiLoading && <button className="copy-btn" onClick={() => copyText(aiFeedback, '点评已复制')}>复制</button>}
                 </div>
-                {aiLoading ? <p className="muted">AI 正在点评……</p>
+                {needUpgrade ? (
+                  <div className="upgrade-box">
+                    <p>🔒 AI 深度点评是 <b>Pro 会员</b> 功能，针对你每次内容给逐条建议。</p>
+                    <a href="/pricing" className="btn btn-primary btn-sm">升级 Pro 解锁</a>
+                  </div>
+                ) : aiLoading ? <p className="muted">AI 正在点评……</p>
                   : aiError ? <p className="notice">{aiError}</p>
                   : aiFeedback ? <p className="ai-feedback">{aiFeedback}</p>
                   : <p className="muted">（点评内容在此显示）</p>}
+
+                <div className="divider" />
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <h4 style={{ margin: 0 }}>📝 参考答案对照</h4>
+                </div>
+                {plan === 'pro' ? (
+                  <>
+                    <p className="rewrite-result">{getModelAnswer(scenarioId)}</p>
+                    <p className="muted small" style={{ marginTop: 6 }}>这是示例结构，把【占位】换成你自己的内容。</p>
+                  </>
+                ) : (
+                  <div className="upgrade-box">
+                    <p>🔒 参考答案是 <b>Pro 会员</b> 功能，练完对照「好版本」更快进步。</p>
+                    <a href="/pricing" className="btn btn-primary btn-sm">升级 Pro 解锁</a>
+                  </div>
+                )}
 
                 <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
                   <button className="btn btn-primary btn-sm" onClick={() => { setResult(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>再练一遍 →</button>
@@ -708,7 +740,13 @@ export default function PracticePage() {
               <div style={{ marginTop: 12 }}>
                 <button className="btn btn-primary" onClick={doRewrite} disabled={rwLoading}>{rwLoading ? '生成中…' : '生成汇报稿'}</button>
               </div>
-              {rwError && <p className="notice" style={{ marginTop: 12 }}>{rwError}</p>}
+              {rwUpgrade && (
+              <div className="upgrade-box" style={{ marginTop: 12 }}>
+                <p>🔒 AI 一键写汇报稿是 <b>Pro 会员</b> 功能。</p>
+                <a href="/pricing" className="btn btn-primary btn-sm">升级 Pro 解锁</a>
+              </div>
+            )}
+            {rwError && <p className="notice" style={{ marginTop: 12 }}>{rwError}</p>}
             </section>
 
             {rwResult && (

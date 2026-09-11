@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildFeedbackPrompt } from '@/lib/analysis';
+import { resolveUserByToken } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,39 +8,33 @@ export async function POST(req: NextRequest) {
     const transcript = String(body?.transcript || '');
     const scenarioLabel = String(body?.scenarioLabel || '工作汇报');
     const frameworkName = String(body?.frameworkName || '');
-    const frameworkSteps = Array.isArray(body?.frameworkSteps)
-      ? body.frameworkSteps.map(String)
-      : [];
+    const frameworkSteps = Array.isArray(body?.frameworkSteps) ? body.frameworkSteps.map(String) : [];
 
     if (!transcript.trim()) {
       return NextResponse.json({ error: '没有可分析的内容，请先录音或输入文字。' }, { status: 400 });
     }
 
+    const token = req.headers.get('authorization')?.replace('Bearer ', '') || '';
+    const { plan } = await resolveUserByToken(token);
+    if (plan !== 'pro') {
+      return NextResponse.json({ upgrade: true, message: 'AI 深度点评是 Pro 会员功能，登录并升级后可用。' });
+    }
+
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({
-        note: '尚未配置 AI Key，本次仅返回本地分析。若需 AI 深度点评，请配置 DEEPSEEK_API_KEY。',
-      });
+      return NextResponse.json({ note: 'AI 服务尚未配置（DEEPSEEK_API_KEY），请稍后再试。' });
     }
 
     const prompt = buildFeedbackPrompt(transcript, scenarioLabel, frameworkName, frameworkSteps);
     const resp = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 600,
-      }),
+      body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0.7, max_tokens: 600 }),
     });
 
     if (!resp.ok) {
       const errText = await resp.text().catch(() => '');
-      return NextResponse.json(
-        { error: `AI 服务调用失败（HTTP ${resp.status}）${errText ? '：' + errText.slice(0, 200) : ''}` },
-        { status: 502 },
-      );
+      return NextResponse.json({ error: `AI 服务调用失败（HTTP ${resp.status}）` }, { status: 502 });
     }
 
     const data = await resp.json();

@@ -466,3 +466,38 @@ button { font-family: inherit; }
   font-size: 72px; font-weight: 800; color: var(--brand); line-height: 1;
   text-align: center; padding: 24px 0;
 }
+
+/* ============ 定价 / 账号 / 弹窗 / 法律页 ============ */
+.pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; max-width: 820px; margin: 0 auto; }
+.price-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 30px 28px; box-shadow: var(--shadow-sm); }
+.price-card.hot { border-color: var(--brand); box-shadow: var(--shadow-lg); }
+.price-badge { position: absolute; top: -12px; right: 24px; background: var(--grad); color: #fff; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+.price-card h3 { margin: 0; font-size: 20px; }
+.price-num b { font-size: 42px; font-weight: 800; color: var(--ink); }
+.price-num span { color: var(--muted); font-size: 15px; }
+.price-features { list-style: none; padding: 0; margin: 18px 0 0; }
+.price-features li { padding: 7px 0; font-size: 15px; color: var(--ink); border-bottom: 1px dashed var(--line); }
+.price-features li:last-child { border-bottom: none; }
+
+.legal h2 { font-size: 19px; margin: 26px 0 8px; }
+.legal p { color: var(--muted); margin: 6px 0; line-height: 1.8; }
+
+.auth-user { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.auth-plan { background: var(--brand-soft); color: var(--brand); padding: 2px 9px; border-radius: 6px; font-weight: 700; white-space: nowrap; }
+.auth-plan.pro { background: #fef3c7; color: #b45309; }
+.auth-email { color: var(--muted); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-upgrade { color: var(--brand); font-weight: 700; white-space: nowrap; }
+.auth-out { border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
+.auth-out:hover { color: var(--danger); }
+.auth-loading { color: var(--muted); }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(10,12,30,0.55); backdrop-filter: blur(4px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { position: relative; background: #fff; border-radius: 16px; padding: 28px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); }
+.modal h3 { margin: 0 0 6px; }
+.modal-close { position: absolute; top: 14px; right: 16px; border: none; background: transparent; font-size: 16px; color: var(--muted); cursor: pointer; }
+
+@media (max-width: 700px) { .pricing-grid { grid-template-columns: 1fr; } }
+
+.upgrade-box { background: var(--brand-soft); border: 1px solid #dcdfff; border-radius: 10px; padding: 14px 16px; margin-top: 8px; }
+.upgrade-box p { margin: 0 0 10px; font-size: 14px; color: #2a3050; }
+.upgrade-box b { color: var(--brand); }
