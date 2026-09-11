@@ -1,28 +1,69 @@
 import Link from 'next/link';
 
+function HeroMockup() {
+  const bars = Array.from({ length: 22 });
+  return (
+    <div className="mockup" aria-hidden="true">
+      <div className="mockup-bar">
+        <span className="mockup-dot" style={{ background: '#f87171' }} />
+        <span className="mockup-dot" style={{ background: '#fbbf24' }} />
+        <span className="mockup-dot" style={{ background: '#34d399' }} />
+        <span className="mockup-url">huibao-rehearsal.vercel.app</span>
+      </div>
+      <div className="mockup-body">
+        <div className="mockup-row">
+          <span className="mockup-chip">📋 周报汇报</span>
+          <span className="mockup-chip">STAR 法则</span>
+          <span style={{ fontSize: 12, color: '#e11d48', fontWeight: 700, marginLeft: 'auto' }}>● 录音中 0:42</span>
+        </div>
+        <div className="mockup-wave">
+          {bars.map((_, i) => (
+            <span key={i} style={{ height: 8 + Math.abs(Math.sin(i * 0.7)) * 26, animationDelay: `${i * 0.05}s` }} />
+          ))}
+        </div>
+        <div className="mockup-transcript">
+          本周我负责的项目<mark className="filler-mark">那个</mark>上线了，
+          <mark className="filler-mark">嗯</mark>整体转化率提升了 15%……
+        </div>
+        <div className="mockup-stats">
+          <div className="mockup-stat"><b>82</b><span>综合得分</span></div>
+          <div className="mockup-stat"><b>2</b><span>填充词</span></div>
+          <div className="mockup-stat"><b>208</b><span>字/分钟</span></div>
+          <div className="mockup-stat"><b>A</b><span>结构清晰</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <main>
       <section className="hero container">
-        <span className="hero-badge">✦ 网页版 · 无需下载 · 打开即用</span>
-        <h1>
-          对着麦克风练<span className="grad">工作汇报</span>，<br />
-          把每一次汇报练成你的加分项
-        </h1>
-        <p className="sub">
-          述职报告、项目汇报、面试答辩、周报总结……实时转写你说的话，标出「嗯、那个、然后」等口头禅，
-          套用 STAR / PREP / 金字塔框架，AI 教练帮你把话讲清楚、讲出结构。
-        </p>
-        <div className="hero-actions">
-          <Link href="/practice" className="btn btn-primary btn-lg">🎤 免费开始练习 →</Link>
-          <a href="#how" className="btn btn-ghost btn-lg">看看怎么用</a>
-        </div>
-        <p className="hero-note">无需注册 · 每天 5 次免费练习 · 中文优先 · 数据不上传服务器</p>
-        <div className="hero-meta">
-          <span className="m">🎙️ <b>实时转写</b> 边说边出字</span>
-          <span className="m">🔍 <b>填充词检测</b> 揪出口头禅</span>
-          <span className="m">🧭 <b>3 大框架</b> STAR / PREP / 金字塔</span>
-          <span className="m">🤖 <b>AI 教练</b> 逐条点评</span>
+        <div className="hero-grid">
+          <div>
+            <span className="hero-badge">✦ 网页版 · 无需下载 · 打开即用</span>
+            <h1>
+              对着麦克风练<span className="grad">工作汇报</span>，<br />
+              把每一次汇报练成你的加分项
+            </h1>
+            <p className="sub">
+              述职报告、项目汇报、面试答辩、周报总结……实时转写你说的话，标出「嗯、那个、然后」等口头禅，
+              套用 STAR / PREP / 金字塔框架，AI 教练帮你把话讲清楚、讲出结构。
+            </p>
+            <div className="hero-actions">
+              <Link href="/practice" className="btn btn-primary btn-lg">🎤 免费开始练习 →</Link>
+              <a href="#how" className="btn btn-ghost btn-lg">看看怎么用</a>
+            </div>
+            <p className="hero-note">无需注册 · 每天 5 次免费练习 · 中文优先 · 数据不上传服务器</p>
+            <div className="hero-meta">
+              <span className="m">🎙️ <b>实时转写</b></span>
+              <span className="m">🔍 <b>填充词检测</b></span>
+              <span className="m">🧭 <b>5 大框架</b></span>
+              <span className="m">🤖 <b>AI 教练</b></span>
+            </div>
+          </div>
+          <HeroMockup />
         </div>
       </section>
 
@@ -45,8 +86,8 @@ export default function HomePage() {
             </div>
             <div className="card">
               <div className="emoji">🧭</div>
-              <h3>结构化框架</h3>
-              <p>内置 STAR / PREP / 金字塔原理，照着框架练，结论先行、逻辑递进。</p>
+              <h3>五大表达框架</h3>
+              <p>STAR / PREP / 金字塔 / SCQA / 黄金圈，照着框架练，结论先行、逻辑递进。</p>
             </div>
             <div className="card">
               <div className="emoji">🤖</div>
@@ -60,8 +101,8 @@ export default function HomePage() {
             </div>
             <div className="card">
               <div className="emoji">📈</div>
-              <h3>多维评分雷达</h3>
-              <p>结构逻辑、表达流畅、词汇精准、语速节奏四维打分，进步看得见。</p>
+              <h3>进步趋势追踪</h3>
+              <p>四维评分雷达 + 练习历史趋势，进步看得见，越练越有方向。</p>
             </div>
           </div>
         </div>
@@ -76,7 +117,7 @@ export default function HomePage() {
           <ol className="steps">
             <li>
               <h4>选一个场景和框架</h4>
-              <p>述职汇报用 STAR，陈述观点用 PREP，向领导汇报用金字塔原理——先搭骨架再开口。</p>
+              <p>述职汇报用 STAR，陈述观点用 PREP，讲故事用 SCQA，说服别人用黄金圈——先搭骨架再开口。</p>
             </li>
             <li>
               <h4>对着麦克风说一遍</h4>
@@ -93,7 +134,7 @@ export default function HomePage() {
       <section className="section" id="frameworks">
         <div className="container">
           <div className="section-head">
-            <h2>三种表达框架，套上即专业</h2>
+            <h2>五种表达框架，套上即专业</h2>
             <p>结构不是束缚，是让你在紧张时也不丢逻辑的脚手架。</p>
           </div>
           <div className="fw-grid">
@@ -129,6 +170,27 @@ export default function HomePage() {
                 <li><b>逻辑递进</b> — 时间/结构/程度排序</li>
               </ol>
             </div>
+            <div className="fw-card">
+              <span className="tag">SCQA 故事法</span>
+              <h4>讲出有张力的汇报</h4>
+              <p className="d">用「冲突→解决」抓住听众注意力</p>
+              <ol>
+                <li><b>S</b> 情境 — 熟悉现状</li>
+                <li><b>C</b> 冲突 — 出现的矛盾</li>
+                <li><b>Q</b> 疑问 — 引发的问题</li>
+                <li><b>A</b> 答案 — 你的方案</li>
+              </ol>
+            </div>
+            <div className="fw-card">
+              <span className="tag">黄金圈 Why-How-What</span>
+              <h4>说服力更强的表达</h4>
+              <p className="d">先讲动机，再讲做法，最后讲结果</p>
+              <ol>
+                <li><b>Why</b> 为什么 — 目的/信念</li>
+                <li><b>How</b> 怎么做 — 方法/路径</li>
+                <li><b>What</b> 做什么 — 行动/结果</li>
+              </ol>
+            </div>
           </div>
         </div>
       </section>
@@ -152,9 +214,7 @@ export default function HomePage() {
 
       <section className="section" id="faq">
         <div className="container">
-          <div className="section-head">
-            <h2>常见问题</h2>
-          </div>
+          <div className="section-head"><h2>常见问题</h2></div>
           <div className="faq">
             <details className="faq-item">
               <summary>需要下载或注册吗？</summary>

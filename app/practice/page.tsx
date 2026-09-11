@@ -94,10 +94,16 @@ function ScoreGauge({ score }: { score: number }) {
   );
 }
 
+const EMPTY_DIMS: Dimension[] = [
+  { key: 'a', label: '结构逻辑', score: 0, note: '' },
+  { key: 'b', label: '表达流畅', score: 0, note: '' },
+  { key: 'c', label: '词汇精准', score: 0, note: '' },
+  { key: 'd', label: '语速节奏', score: 0, note: '' },
+];
+
 export default function PracticePage() {
   const [tab, setTab] = useState<'practice' | 'rewrite'>('practice');
 
-  // 练口语 state
   const [scenarioId, setScenarioId] = useState('weekly');
   const [frameworkId, setFrameworkId] = useState('star');
   const [isRecording, setIsRecording] = useState(false);
@@ -113,8 +119,8 @@ export default function PracticePage() {
   const [typedText, setTypedText] = useState('');
   const [notice, setNotice] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [toast, setToast] = useState('');
 
-  // 写汇报稿 state
   const [rwScenario, setRwScenario] = useState('weekly');
   const [rwFramework, setRwFramework] = useState('pyramid');
   const [rwNotes, setRwNotes] = useState('');
@@ -124,6 +130,7 @@ export default function PracticePage() {
 
   const recRef = useRef<any>(null);
   const timerRef = useRef<number | null>(null);
+  const toastTimer = useRef<number | null>(null);
   const startRef = useRef(0);
   const finalRef = useRef('');
   const interimRef = useRef('');
@@ -137,6 +144,21 @@ export default function PracticePage() {
     setQuota(Math.max(0, FREE_DAILY - used));
     setHistory(loadHistory());
   }, []);
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(''), 2000);
+  }, []);
+
+  const copyText = useCallback(async (text: string, label = '已复制到剪贴板') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(label);
+    } catch {
+      showToast('复制失败，请手动选择复制');
+    }
+  }, [showToast]);
 
   const clearTimer = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -296,7 +318,16 @@ export default function PracticePage() {
     }
   }, [rwNotes, rwScenario, rwFramework]);
 
+  const useDraftForPractice = () => {
+    const cleaned = rwResult.replace(/【.*?】/g, '').replace(/^\s*$/gm, '').trim();
+    setTypedText(cleaned);
+    setTab('practice');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('已填入练习区，点「分析这段文字」开始');
+  };
+
   const goodScore = (s: number) => (s >= 70 ? 'good' : s >= 50 ? 'mid' : 'bad');
+  const trendScores = useMemo(() => [...history].slice(0, 8).reverse().map((h) => h.score), [history]);
 
   return (
     <main className="container" style={{ paddingTop: 30, paddingBottom: 72 }}>
@@ -318,7 +349,6 @@ export default function PracticePage() {
 
       {tab === 'practice' ? (
         <div className="panel">
-          {/* 左：练习区 */}
           <div className="card">
             <div className="scenario-row">
               {SCENARIOS.map((s) => (
@@ -357,6 +387,13 @@ export default function PracticePage() {
                 {isRecording ? '结束' : '录音'}
               </button>
               <div className="rec-timer">{isRecording ? fmt(durationSec) : '\u00A0'}</div>
+              {isRecording && (
+                <div className="wave" aria-hidden="true">
+                  {Array.from({ length: 26 }).map((_, i) => (
+                    <span key={i} style={{ animationDelay: `${i * 0.045}s` }} />
+                  ))}
+                </div>
+              )}
               <p className="rec-hint">
                 {isRecording ? '正在实时转写，说完了点「结束」' : quota === 0 ? '今日额度已用完' : '点击开始，请允许麦克风权限（推荐 Chrome/Edge）'}
               </p>
@@ -386,19 +423,13 @@ export default function PracticePage() {
             <button className="btn btn-ghost btn-sm" onClick={analyzeTyped} style={{ marginTop: 10 }}>分析这段文字</button>
           </div>
 
-          {/* 右：结果区 */}
           <div className="card">
             {!result ? (
               <>
                 <h3 style={{ marginTop: 0 }}>📊 分析结果</h3>
                 <p className="muted">录音并点击「结束」后，这里会显示四维评分雷达、填充词统计、语速和 AI 教练点评。</p>
                 <div className="radar-wrap">
-                  <RadarChart dimensions={[
-                    { key: 'a', label: '结构逻辑', score: 0, note: '' },
-                    { key: 'b', label: '表达流畅', score: 0, note: '' },
-                    { key: 'c', label: '词汇精准', score: 0, note: '' },
-                    { key: 'd', label: '语速节奏', score: 0, note: '' },
-                  ]} />
+                  <RadarChart dimensions={EMPTY_DIMS} />
                 </div>
               </>
             ) : (
@@ -415,9 +446,14 @@ export default function PracticePage() {
                 <div className="radar-wrap">
                   <RadarChart dimensions={result.dimensions} />
                 </div>
+                <div className="dim-legend">
+                  {result.dimensions.map((d) => (
+                    <div className="dim-item" key={d.key}><b>{d.label} {d.score}</b> <span className="dn">· {d.note}</span></div>
+                  ))}
+                </div>
 
                 {result.fillers.length > 0 && (
-                  <div className="filler-chips">
+                  <div className="filler-chips" style={{ marginTop: 12 }}>
                     {result.fillers.map((f) => <span key={f.word} className="filler-chip">{f.word} ×{f.count}</span>)}
                   </div>
                 )}
@@ -429,7 +465,10 @@ export default function PracticePage() {
 
                 <div className="divider" />
 
-                <h4 style={{ margin: '0 0 8px' }}>🤖 AI 教练点评</h4>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <h4 style={{ margin: 0 }}>🤖 AI 教练点评</h4>
+                  {aiFeedback && !aiLoading && <button className="copy-btn" onClick={() => copyText(aiFeedback, '点评已复制')}>复制</button>}
+                </div>
                 {aiLoading ? <p className="muted">AI 正在点评……</p>
                   : aiError ? <p className="notice">{aiError}</p>
                   : aiFeedback ? <p className="ai-feedback">{aiFeedback}</p>
@@ -440,7 +479,6 @@ export default function PracticePage() {
         </div>
       ) : (
         <div className="panel">
-          {/* 写汇报稿 */}
           <div className="card">
             <h3 style={{ marginTop: 0 }}>✍️ AI 帮你把要点写成汇报稿</h3>
             <p className="muted small" style={{ margin: '0 0 14px' }}>把你零散的素材丢进来，AI 按框架帮你整理成一段能直接照着说的汇报。</p>
@@ -474,20 +512,36 @@ export default function PracticePage() {
           </div>
 
           <div className="card">
-            <h3 style={{ marginTop: 0 }}>📄 生成结果</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <h3 style={{ margin: 0 }}>📄 生成结果</h3>
+              {rwResult && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="copy-btn" onClick={() => copyText(rwResult, '汇报稿已复制')}>复制</button>
+                  <button className="copy-btn" onClick={useDraftForPractice}>用这段练口语 →</button>
+                </div>
+              )}
+            </div>
             {rwResult ? (
               <p className="rewrite-result">{rwResult}</p>
             ) : (
-              <p className="muted">生成后的汇报稿会显示在这里，你可以直接照着练，也可以复制回「练口语」里再练一遍。</p>
+              <p className="muted">生成后的汇报稿会显示在这里，你可以直接照着练，也可以一键转到「练口语」里再练一遍。</p>
             )}
           </div>
         </div>
       )}
 
-      {/* 历史记录 */}
       {tab === 'practice' && history.length > 0 && (
         <div className="card history">
-          <h4 style={{ margin: '0 0 8px' }}>🕘 最近练习</h4>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h4 style={{ margin: 0 }}>🕘 最近练习</h4>
+            {history.length > 1 && (
+              <div className="trend" style={{ width: '40%', height: 40, margin: 0 }} aria-label="进步趋势">
+                {trendScores.map((s, i) => (
+                  <div key={i} className="trend-bar" style={{ height: `${Math.max(8, s)}%` }} title={`${s} 分`} />
+                ))}
+              </div>
+            )}
+          </div>
           {history.slice(0, 6).map((h, i) => (
             <div className="history-item" key={h.ts + '-' + i}>
               <span className="sc">{h.scenario} · {h.framework} · {h.chars}字 · {h.cpm || '-'}字/分</span>
@@ -502,6 +556,8 @@ export default function PracticePage() {
           你的浏览器不支持语音识别，请用 Chrome / Edge 打开，或使用「粘贴文字」功能。
         </p>
       )}
+
+      {toast && <div className="toast">{toast}</div>}
     </main>
   );
 }

@@ -44,4 +44,25 @@ export const FRAMEWORKS: Framework[] = [
       { key: 'o', label: '逻辑递进', hint: '每组要点按时间 / 结构 / 程度排序' },
     ],
   },
+  {
+    id: 'scqa',
+    name: 'SCQA 故事法',
+    desc: '用「冲突 → 解决」讲出有张力的汇报',
+    steps: [
+      { key: 's', label: 'S · 情境 Situation', hint: '背景：大家熟悉的现状是什么' },
+      { key: 'c', label: 'C · 冲突 Complication', hint: '转折：出现了什么矛盾 / 问题' },
+      { key: 'q', label: 'Q · 疑问 Question', hint: '由此引发的问题是什么' },
+      { key: 'a', label: 'A · 答案 Answer', hint: '你的方案 / 结论是什么' },
+    ],
+  },
+  {
+    id: 'golden',
+    name: '黄金圈 Why-How-What',
+    desc: '先讲动机再讲做法，说服力更强的表达',
+    steps: [
+      { key: 'why', label: 'Why · 为什么', hint: '目的 / 信念 / 为什么要做这件事' },
+      { key: 'how', label: 'How · 怎么做', hint: '你的方法 / 路径 / 差异化' },
+      { key: 'what', label: 'What · 做什么', hint: '具体行动 / 交付的结果' },
+    ],
+  },
 ];
