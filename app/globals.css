@@ -408,3 +408,19 @@ button { font-family: inherit; }
   background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .statstrip-inner span { font-size: 13px; color: var(--muted); }
+
+/* ============ 练习页顶部暗色横幅 ============ */
+.practice-hero {
+  position: relative;
+  background: radial-gradient(1100px 520px at 50% -25%, #1e1b4b 0%, #0e1029 60%, #0b0c1f 100%);
+  color: #fff;
+  padding: 40px 0 34px;
+  overflow: hidden;
+}
+.practice-hero h1 { color: #fff; }
+.practice-hero .practice-head .muted { color: rgba(255,255,255,0.62); }
+.practice-hero .quota-pill { background: rgba(255,255,255,0.1); color: #c7d2fe; border: 1px solid rgba(255,255,255,0.16); }
+.practice-hero .tabs { background: rgba(255,255,255,0.08); }
+.practice-hero .tab-btn { color: rgba(255,255,255,0.72); }
+.practice-hero .tab-btn:hover { color: #fff; }
+.practice-hero .tab-btn.on { background: #fff; color: var(--brand); }

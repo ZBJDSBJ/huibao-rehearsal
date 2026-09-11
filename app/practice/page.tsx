@@ -323,25 +323,32 @@ export default function PracticePage() {
   const trendScores = useMemo(() => [...history].slice(0, 8).reverse().map((h) => h.score), [history]);
 
   return (
-    <main className="container" style={{ paddingTop: 30, paddingBottom: 72 }}>
-      <div className="practice-head">
-        <div>
-          <h1>汇报排练</h1>
-          <p className="muted" style={{ margin: 0 }}>
-            练一次，胜过在心里默念十遍。
-            {quota > 0 ? ` 今日剩余免费次数：${quota} / ${FREE_DAILY}` : ' 今日免费次数已用完，明天再来练。'}
-          </p>
+    <main style={{ paddingBottom: 72 }}>
+      <div className="practice-hero">
+        <div className="aurora aurora-1" />
+        <div className="aurora aurora-2" />
+        <div className="container">
+          <div className="practice-head">
+            <div>
+              <h1>汇报排练</h1>
+              <p className="muted" style={{ margin: 0 }}>
+                练一次，胜过在心里默念十遍。
+                {quota > 0 ? ` 今日剩余免费次数：${quota} / ${FREE_DAILY}` : ' 今日免费次数已用完，明天再来练。'}
+              </p>
+            </div>
+            <span className="quota-pill">✨ 无需注册 · 数据不上传</span>
+          </div>
+
+          <div className="tabs">
+            <button className={`tab-btn ${tab === 'practice' ? 'on' : ''}`} onClick={() => setTab('practice')}>🎙️ 练口语</button>
+            <button className={`tab-btn ${tab === 'rewrite' ? 'on' : ''}`} onClick={() => setTab('rewrite')}>✍️ 写汇报稿</button>
+          </div>
         </div>
-        <span className="quota-pill">✨ 无需注册 · 数据不上传</span>
       </div>
 
-      <div className="tabs">
-        <button className={`tab-btn ${tab === 'practice' ? 'on' : ''}`} onClick={() => setTab('practice')}>🎙️ 练口语</button>
-        <button className={`tab-btn ${tab === 'rewrite' ? 'on' : ''}`} onClick={() => setTab('rewrite')}>✍️ 写汇报稿</button>
-      </div>
-
+      <div className="container">
       {tab === 'practice' ? (
-        <div className="flow">
+        <div className="flow" style={{ paddingTop: 24 }}>
           {/* 第 1 步：配置 */}
           <section className="card" style={{ padding: '20px 22px' }}>
             <div className="setup-row">
@@ -499,7 +506,7 @@ export default function PracticePage() {
           )}
         </div>
       ) : (
-        <div className="flow">
+        <div className="flow" style={{ paddingTop: 24 }}>
           <section className="card" style={{ padding: '22px' }}>
             <h3 style={{ margin: '0 0 4px' }}>✍️ AI 帮你把要点写成汇报稿</h3>
             <p className="muted small" style={{ margin: '0 0 16px' }}>把你零散的素材丢进来，AI 按框架帮你整理成一段能直接照着说的汇报。</p>
@@ -558,6 +565,7 @@ export default function PracticePage() {
           你的浏览器不支持语音识别，请用 Chrome / Edge 打开，或使用「粘贴文字」功能。
         </p>
       )}
+      </div>
 
       {toast && <div className="toast">{toast}</div>}
     </main>
